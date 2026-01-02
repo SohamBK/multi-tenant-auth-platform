@@ -1,0 +1,31 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+
+# ---- Virtual Environment ----
+venv/
+.env
+
+# ---- Docker ----
+*.pid
+*.sock
+
+# ---- IDE / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Alembic ----
+alembic/versions/__pycache__/
+
+# ---- Cache ----
+.pytest_cache/
+.mypy_cache/
+
+# Documents folder
+documents/
+*.md
