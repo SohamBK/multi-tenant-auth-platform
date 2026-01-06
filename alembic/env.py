@@ -8,6 +8,15 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
 
+from app.core.config import settings
+
+from app.infrastructure.db.base import Base
+from app.infrastructure.db.models.user import User
+from app.infrastructure.db.models.tenant import Tenant
+from app.infrastructure.db.models.refresh_token import RefreshToken
+from app.infrastructure.db.models.user_auth_method import UserAuthMethod
+from app.infrastructure.db.models.login_attempt import LoginAttempt
+
 # --- Ensure project root on PYTHONPATH ---
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT_DIR))
@@ -17,6 +26,9 @@ from app.infrastructure.db.base import Base
 
 # Alembic Config
 config = context.config
+
+# 2. Dynamically set the sqlalchemy.url from your .env/settings
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
