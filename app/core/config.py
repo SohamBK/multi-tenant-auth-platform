@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     # Docs configuration
     ENABLE_DOCS: bool = False
 
+    # Security
+    PUBLIC_KEY: str
+    PRIVATE_KEY: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 150
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
     class Config:
         env_file = ".env"
 

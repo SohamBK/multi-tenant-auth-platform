@@ -46,12 +46,11 @@ class User(Base, IDMixin, TimestampMixin, TenantMixin):
 
     # Credential management (Sensitive data separated)
     # ondelete="CASCADE" is handled in the child model
-    credentials: Mapped["UserCredentials"] = relationship(
-        "UserCredentials", 
-        back_populates="user", 
-        uselist=False,
-        cascade="all, delete-orphan" # If User is deleted, delete their password hash
-    )
+    auth_methods: Mapped[List["UserAuthMethod"]] = relationship(
+            "UserAuthMethod", 
+            back_populates="user", 
+            cascade="all, delete-orphan"
+        )
 
     # Session management
     refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
