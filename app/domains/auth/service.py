@@ -12,6 +12,7 @@ from app.infrastructure.db.models.login_attempt import LoginAttempt
 from app.core.config import settings
 from app.core.exceptions import AuthenticationError, InvalidCredentials
 from sqlalchemy import select, update
+from app.core.rate_limiter import RateLimiter
 
 from app.core.logging import setup_logging, get_logger
 
@@ -22,6 +23,12 @@ class AuthService:
     def __init__(self, user_repo: UserRepository, otp_repo: OTPRepository):
             self.user_repo = user_repo
             self.otp_repo = otp_repo
+            # Initialize the limiter for OTP requests
+            self.otp_limiter = RateLimiter(
+                key_prefix="otp_req", 
+                limit=3, 
+                window_seconds=600  # 10 minutes
+            )
 
     async def authenticate_user(
         self, 
@@ -198,6 +205,10 @@ class AuthService:
 
     async def request_otp(self, email: str) -> None:
         """Generates, stores, and logs an OTP."""
+
+        # Rate limiting
+        await self.otp_limiter.check_limit(email)
+        
         # 1. Check if user exists (Standard security: still 'succeed' if user doesn't exist)
         user = await self.user_repo.get_by_email(email)
         
