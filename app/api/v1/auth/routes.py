@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps.db import get_db
-from app.domains.auth.schemas import LoginRequest, TokenResponse
+from app.domains.auth.schemas import LoginRequest, TokenResponse, RefreshRequest
+from app.core.responses import SuccessResponse
 from app.domains.auth.service import AuthService
 from app.domains.users.repository import UserRepository
 
@@ -13,7 +14,7 @@ def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
     user_repo = UserRepository(session)
     return AuthService(user_repo)
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=SuccessResponse[TokenResponse])
 async def login(
     request: Request,
     login_data: LoginRequest,
@@ -34,7 +35,47 @@ async def login(
         user_agent=user_agent
     )
 
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token
+    return SuccessResponse(
+        data=TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token
+        ),
+        message="Login successful"
+    )
+
+@router.post("/refresh", response_model=SuccessResponse[TokenResponse])
+async def refresh_token(
+    refresh_data: RefreshRequest,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """
+    Exchanges a Refresh Token for a new Access/Refresh pair.
+    """
+    access_token, refresh_token = await auth_service.refresh_access_token(
+        refresh_token_str=refresh_data.refresh_token
+    )
+
+    return SuccessResponse(
+        data=TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token
+        ),
+        message="Token refreshed successfully"
+    )
+
+@router.post("/logout", response_model=SuccessResponse[None])
+async def logout(
+    refresh_data: RefreshRequest,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """
+    Logs out a user by revoking the provided Refresh Token.
+    """
+    await auth_service.revoke_refresh_token(
+        refresh_token_str=refresh_data.refresh_token
+    )
+
+    return SuccessResponse(
+        data=None,
+        message="Logout successful"
     )
