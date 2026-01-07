@@ -1,5 +1,4 @@
 from pydantic import BaseModel, EmailStr, Field
-
 class LoginRequest(BaseModel):
     """Schema for user login request."""
     email: EmailStr = Field(..., example="user@example.com")
@@ -14,3 +13,10 @@ class TokenResponse(BaseModel):
 class RefreshRequest(BaseModel):
     """Schema for token refresh request."""
     refresh_token: str
+
+class OTPRequest(BaseModel):
+    email: EmailStr
+
+class OTPVerify(BaseModel):
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")

@@ -2,17 +2,16 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps.db import get_db
-from app.domains.auth.schemas import LoginRequest, TokenResponse, RefreshRequest
+from app.domains.auth.schemas import LoginRequest, TokenResponse, RefreshRequest, OTPRequest, OTPVerify
 from app.core.responses import SuccessResponse
 from app.domains.auth.service import AuthService
 from app.domains.users.repository import UserRepository
+from app.domains.auth.otp_repository import OTPRepository
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
-    """Dependency provider for AuthService."""
-    user_repo = UserRepository(session)
-    return AuthService(user_repo)
+    return AuthService(UserRepository(session), OTPRepository())
 
 @router.post("/login", response_model=SuccessResponse[TokenResponse])
 async def login(
@@ -78,4 +77,23 @@ async def logout(
     return SuccessResponse(
         data=None,
         message="Logout successful"
+    )
+
+@router.post("/otp/request")
+async def request_otp(
+    data: OTPRequest,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    await auth_service.request_otp(data.email)
+    return SuccessResponse(data=None, message="If the email exists, an OTP has been sent.")
+
+@router.post("/otp/verify", response_model=SuccessResponse[TokenResponse])
+async def verify_otp(
+    data: OTPVerify,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    access, refresh = await auth_service.verify_otp_login(data.email, data.otp)
+    return SuccessResponse(
+        data=TokenResponse(access_token=access, refresh_token=refresh),
+        message="Login successful"
     )

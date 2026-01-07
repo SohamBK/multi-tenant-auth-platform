@@ -1,19 +1,27 @@
 import uuid
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 from app.security.hashing import verify_password
 from app.security.tokens import create_jwt_token
 from app.domains.users.repository import UserRepository
+from app.domains.auth.otp_repository import OTPRepository
 from app.infrastructure.db.models.refresh_token import RefreshToken
 from app.infrastructure.db.models.login_attempt import LoginAttempt
 from app.core.config import settings
 from app.core.exceptions import AuthenticationError, InvalidCredentials
 from sqlalchemy import select, update
 
+from app.core.logging import setup_logging, get_logger
+
+setup_logging()
+logger = get_logger(__name__)
+
 class AuthService:
-    def __init__(self, user_repo: UserRepository):
-        self.user_repo = user_repo
+    def __init__(self, user_repo: UserRepository, otp_repo: OTPRepository):
+            self.user_repo = user_repo
+            self.otp_repo = otp_repo
 
     async def authenticate_user(
         self, 
@@ -187,3 +195,47 @@ class AuthService:
         
         # 3. Commit the change
         await self.user_repo.session.commit()
+
+    async def request_otp(self, email: str) -> None:
+        """Generates, stores, and logs an OTP."""
+        # 1. Check if user exists (Standard security: still 'succeed' if user doesn't exist)
+        user = await self.user_repo.get_by_email(email)
+        
+        # 2. Generate a secure 6-digit OTP
+        otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+        
+        # 3. Store in Redis
+        await self.otp_repo.store_otp(email, otp)
+        
+        # 4. Console Logging (Instead of Email/SMS)
+        print(f"\n[SECURITY] OTP for {email}: {otp} (Expires in 5m)\n")
+        logger.info(f"OTP generated for {email}")
+
+    async def verify_otp_login(self, email: str, otp: str) -> Tuple[str, str]:
+        """Verifies OTP and returns JWT tokens with full payload."""
+        # 1. Fetch OTP from Redis
+        stored_otp = await self.otp_repo.get_otp(email)
+        
+        if not stored_otp or stored_otp != otp:
+            raise InvalidCredentials("Invalid or expired OTP")
+
+        # 2. OTP is valid, fetch user
+        user = await self.user_repo.get_by_email(email)
+        if not user or user.user_status != "active":
+            raise AuthenticationError("User not found or inactive")
+
+        # 3. Consume OTP (Delete so it can't be used twice)
+        await self.otp_repo.delete_otp(email)
+
+        # 4. Standard Token Issuance
+        # ✅ FIX: Pass is_superuser and expires_delta
+        access_token = create_jwt_token(
+            subject=user.id, 
+            tenant_id=user.tenant_id,
+            is_superuser=user.is_superuser,
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        
+        refresh_token = await self._issue_refresh_token(user)
+
+        return access_token, refresh_token
