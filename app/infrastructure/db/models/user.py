@@ -1,7 +1,8 @@
-import uuid
+from uuid import UUID
 from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import String, Boolean, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey
 
 from app.infrastructure.db.base import Base
 from app.infrastructure.db.mixins import IDMixin, TimestampMixin, TenantMixin
@@ -34,11 +35,11 @@ class User(Base, IDMixin, TimestampMixin, TenantMixin):
     # user status
     user_status: Mapped[UserStatus] = mapped_column(String(50), default=UserStatus.ACTIVE.value, nullable=False)
     
-    # Super Admin Provision: 
-    # If True, this user can bypass tenant filters in the repository/service layer.
-    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    role_id: Mapped[UUID] = mapped_column(ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False)
 
     # Relationships
+    role: Mapped["Role"] = relationship("Role", back_populates="users")
+
     tenant: Mapped[Optional["Tenant"]] = relationship(
         "Tenant", 
         back_populates="users"
