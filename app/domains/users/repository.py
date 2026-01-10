@@ -2,9 +2,12 @@ from typing import Optional
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.domains.shared.repository import BaseRepository
 from app.infrastructure.db.models.user import User
 from app.infrastructure.db.models.auth_rbac import Role
+
 
 class UserRepository(BaseRepository[User]):
     def __init__(self, session: AsyncSession):
@@ -18,17 +21,15 @@ class UserRepository(BaseRepository[User]):
         query = (
             select(self.model)
             .options(
-                # selectinload is the industry standard for 1-to-N relationships
                 selectinload(self.model.role)
                 .selectinload(Role.permissions)
             )
             .where(self.model.id == id)
         )
-        
+
         # Enforce tenant isolation
-        # For Global Super Admins, tenant_id will be None
         if tenant_id and hasattr(self.model, "tenant_id"):
             query = query.where(self.model.tenant_id == tenant_id)
-            
+
         result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        return result.unique().scalar_one_or_none()
