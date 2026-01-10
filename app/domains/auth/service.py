@@ -128,11 +128,12 @@ class AuthService:
         new_refresh_str = await self._issue_refresh_token(user)
         
         # Update old token metadata
+        db_token.replaced_by = new_refresh_str.id
         db_token.revoked_at = datetime.now(timezone.utc)
         # Note: You'll need the ID of the new token to set replaced_by
         # This requires looking up the token we just created in _issue_refresh_token
         
-        await self.user_repo.session.commit()
+        # await self.user_repo.session.commit()
 
         return new_access_token, new_refresh_str
     
@@ -149,7 +150,7 @@ class AuthService:
             return
 
         db_token.revoked_at = datetime.now(timezone.utc)
-        await self.user_repo.session.commit()
+        # await self.user_repo.session.commit()
 
     async def _revoke_all_user_tokens(self, user_id: uuid.UUID):
         """Safety mechanism for suspected breaches."""
@@ -159,23 +160,21 @@ class AuthService:
             .values(revoked_at=datetime.now(timezone.utc))
         )
         await self.user_repo.session.execute(stmt)
-        await self.user_repo.session.commit()
+        # await self.user_repo.session.commit()
 
-    async def _issue_refresh_token(self, user) -> str:
-        """Creates and stores a rotating refresh token."""
-        # Note: In a real app, you'd hash the token before storing
+    async def _issue_refresh_token(self, user) -> RefreshToken:
         token_str = str(uuid.uuid4())
-        
+
         new_token = RefreshToken(
             user_id=user.id,
             tenant_id=user.tenant_id,
-            token_hash=token_str, # Simplification: use a hash in production
+            token_hash=token_str,
             expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         )
         self.user_repo.session.add(new_token)
         await self.user_repo.session.flush()
         
-        return token_str
+        return new_token
 
     async def _create_login_attempt(self, **kwargs):
         """Internal helper to log all attempts."""
@@ -201,7 +200,7 @@ class AuthService:
         db_token.revoked_at = datetime.now(timezone.utc)
         
         # 3. Commit the change
-        await self.user_repo.session.commit()
+        # await self.user_repo.session.commit()
 
     async def request_otp(self, email: str) -> None:
         """Generates, stores, and logs an OTP."""
