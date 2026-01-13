@@ -3,76 +3,49 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps.db import get_db
+from app.api.deps.tenant import get_current_tenant
 from app.domains.users.repository import UserRepository
 from app.security.tokens import decode_token
-from app.infrastructure.db.models.user import User
-from app.security.permissions import has_permission
 
-# Security scheme for Swagger UI
 security = HTTPBearer()
+
 
 async def get_current_user(
     auth: HTTPAuthorizationCredentials = Depends(security),
-    session: AsyncSession = Depends(get_db)
-) -> User:
+    session: AsyncSession = Depends(get_db),
+    current_tenant=Depends(get_current_tenant),
+):
     """
-    Validates the Bearer token and retrieves the User with full RBAC context.
+    Validates JWT and loads the authenticated user
+    strictly within the tenant boundary.
     """
     token = auth.credentials
-    
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired token",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
 
     try:
-        # Decode the RS256 JWT
         payload = decode_token(token)
-        user_id: str = payload.get("sub")
-        if not user_id:
-            raise credentials_exception
-    except Exception:
-        raise credentials_exception
+        user_id = payload.get("sub")
 
-    # Use the optimized repository method to get user + role + permissions
+        if not user_id:
+            raise ValueError("Missing sub in token")
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user_repo = UserRepository(session)
-    user = await user_repo.get_by_id(id=user_id)
+    user = await user_repo.get_by_id(
+        id=user_id,
+        tenant_id=current_tenant.id if current_tenant else None,
+    )
+
 
     if not user or user.user_status != "active":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="User inactive or not found"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User inactive or not found",
         )
 
     return user
-
-class PermissionChecker:
-    """
-    Dependency factory for granular, wildcard-aware RBAC.
-    """
-    def __init__(self, required_permission: str):
-        self.required_permission = required_permission
-
-    async def __call__(self, current_user: User = Depends(get_current_user)) -> bool:
-        """
-        Validates the user's role permissions against the required slug.
-        """
-        # 1. Ensure the user actually has a role assigned
-        if not current_user.role:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User has no assigned role"
-            )
-
-        # 2. Extract permission slugs (e.g., ['users:*', 'tenants:view'])
-        user_permissions = [p.slug for p in current_user.role.permissions]
-        
-        # 3. Match against wildcard or exact slug
-        if not has_permission(user_permissions, self.required_permission):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Missing required permission: {self.required_permission}"
-            )
-        
-        return True
