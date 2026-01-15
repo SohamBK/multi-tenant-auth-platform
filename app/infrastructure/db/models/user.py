@@ -61,4 +61,4 @@ class User(Base, IDMixin, TimestampMixin, TenantMixin):
     )
 
     def __repr__(self) -> str:
-        return f"<User(email={self.email}, is_superuser={self.is_superuser})>"
+        return f"<User(email={self.email}, tenant_id={self.tenant_id})>"

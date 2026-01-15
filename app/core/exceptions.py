@@ -52,3 +52,8 @@ class ResourceNotFound(AppException):
     status_code = 404
     error_code = "NOT_FOUND"
     message = "Resource not found"
+
+class ResourceConflict(AppException):
+    status_code = 409
+    error_code = "RESOURCE_CONFLICT"
+    message = "Resource with given attributes already exists"

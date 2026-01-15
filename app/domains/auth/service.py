@@ -75,15 +75,14 @@ class AuthService:
 
         # 5. Token Generation
         access_token = create_jwt_token(
-            subject=user.id,
+            subject=user.id, 
             tenant_id=user.tenant_id,
-            is_superuser=user.is_superuser,
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-        
-        refresh_token = await self._issue_refresh_token(user)
 
-        return access_token, refresh_token
+        
+        refresh_token_str = await self._issue_refresh_token(user)
+        return access_token, refresh_token_str
     
     async def refresh_access_token(
         self, 
@@ -120,22 +119,22 @@ class AuthService:
         new_access_token = create_jwt_token(
             subject=user.id,
             tenant_id=user.tenant_id,
-            is_superuser=user.is_superuser,
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         )
+
         
         # 5. Rotate: Issue new refresh token and link the old one
-        new_refresh_str = await self._issue_refresh_token(user)
+        new_refresh_token_str = await self._issue_refresh_token(user)
         
         # Update old token metadata
-        db_token.replaced_by = new_refresh_str.id
+        db_token.replaced_by = new_refresh_token_str.id
         db_token.revoked_at = datetime.now(timezone.utc)
         # Note: You'll need the ID of the new token to set replaced_by
         # This requires looking up the token we just created in _issue_refresh_token
         
         # await self.user_repo.session.commit()
 
-        return new_access_token, new_refresh_str
+        return new_access_token, new_refresh_token_str
     
     async def logout(self, refresh_token_str: str):
         """
@@ -162,19 +161,21 @@ class AuthService:
         await self.user_repo.session.execute(stmt)
         # await self.user_repo.session.commit()
 
-    async def _issue_refresh_token(self, user) -> RefreshToken:
+    async def _issue_refresh_token(self, user) -> str:
         token_str = str(uuid.uuid4())
 
         new_token = RefreshToken(
             user_id=user.id,
             tenant_id=user.tenant_id,
             token_hash=token_str,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         )
+
         self.user_repo.session.add(new_token)
         await self.user_repo.session.flush()
-        
-        return new_token
+
+        return token_str
 
     async def _create_login_attempt(self, **kwargs):
         """Internal helper to log all attempts."""
@@ -238,14 +239,11 @@ class AuthService:
         await self.otp_repo.delete_otp(email)
 
         # 4. Standard Token Issuance
-        # ✅ FIX: Pass is_superuser and expires_delta
         access_token = create_jwt_token(
-            subject=user.id, 
+            subject=user.id,
             tenant_id=user.tenant_id,
-            is_superuser=user.is_superuser,
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         )
         
-        refresh_token = await self._issue_refresh_token(user)
-
-        return access_token, refresh_token
+        refresh_token_str = await self._issue_refresh_token(user)
+        return access_token, refresh_token_str

@@ -4,14 +4,21 @@ import uuid_utils
 from sqlalchemy import DateTime, ForeignKey, func, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
 
+def uuid7_uuid() -> uuid.UUID:
+    """
+    Generate a UUIDv7 but return a standard uuid.UUID instance
+    for compatibility with Pydantic and typing.
+    """
+    return uuid.UUID(str(uuid_utils.uuid7()))
+
 class IDMixin:
     """Mixin to add a UUIDv7 primary key."""
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        primary_key=True, 
-        default=uuid_utils.uuid7, 
-        unique=True, 
-        nullable=False
+        primary_key=True,
+        default=uuid7_uuid,
+        unique=True,
+        nullable=False,
     )
 
 class TimestampMixin:

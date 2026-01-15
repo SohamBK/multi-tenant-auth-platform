@@ -7,7 +7,7 @@ class UserSchema(BaseModel):
     email: EmailStr
     first_name: str | None = None
     last_name: str | None = None
-    is_superuser: bool
+    # is_superuser: bool
     tenant_id: UUID | None = None
 
     # This allows Pydantic to read data directly from the SQLAlchemy model

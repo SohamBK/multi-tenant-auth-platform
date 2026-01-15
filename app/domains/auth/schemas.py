@@ -5,10 +5,9 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=8, example="strong_password_123")
 
 class TokenResponse(BaseModel):
-    """Schema for successful authentication response."""
     access_token: str
     refresh_token: str
-    token_type: str = "Bearer"
+    token_type: str = "bearer"
 
 class RefreshRequest(BaseModel):
     """Schema for token refresh request."""
