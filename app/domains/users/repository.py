@@ -25,6 +25,7 @@ class UserRepository(BaseRepository[User]):
                 selectinload(self.model.role)
                 .selectinload(Role.permissions),
                 selectinload(self.model.auth_methods),
+                selectinload(self.model.tenant)
             )
             .where(self.model.id == id)
         )

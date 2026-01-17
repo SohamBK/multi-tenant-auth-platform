@@ -41,11 +41,21 @@ async def get_current_user(
         tenant_id=current_tenant.id if current_tenant else None,
     )
 
-
+    # --- User status check ---
     if not user or user.user_status != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User inactive or not found",
         )
+
+    # --- 🔒 Tenant status enforcement ---
+    # Applies ONLY to tenant-scoped users
+    if user.tenant_id is not None:
+        # current_tenant is guaranteed to be resolved by get_current_tenant
+        if not current_tenant or current_tenant.tenant_status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tenant is inactive",
+            )
 
     return user

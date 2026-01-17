@@ -14,3 +14,6 @@ class TenantResponseSchema(BaseModel):
         from_attributes=True,
         arbitrary_types_allowed=True,
     )
+
+class TenantUpdateSchema(BaseModel):
+    name: str = Field(..., min_length=5, max_length=255)
