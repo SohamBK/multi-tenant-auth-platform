@@ -24,6 +24,13 @@ class TenantRepository(BaseRepository[Tenant]):
 
         return result.scalar_one_or_none()
     
+    async def get_active_by_id(self, tenant_id):
+        query = select(self.model).where(
+            self.model.id == tenant_id,
+            self.model.tenant_status == "active",
+        )
+        return (await self.session.execute(query)).scalar_one_or_none()
+    
 
     async def create(self, *, name: str) -> Tenant:
         tenant = Tenant(

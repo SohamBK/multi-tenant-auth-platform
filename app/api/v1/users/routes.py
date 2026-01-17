@@ -10,6 +10,11 @@ from app.domains.users.schemas import UserCreateSchema, UserSchema
 from app.domains.users.repository import UserRepository
 from app.domains.users.service import UserService
 
+from app.domains.tenants.repository import TenantRepository
+from app.domains.roles.repository import RoleRepository
+
+from app.domains.shared.schemas.pagination import PaginationParams, PaginatedData, PaginationMeta
+
 from app.domains.audit.repository import AuditLogRepository
 from app.domains.audit.service import AuditService
 from app.domains.audit.schemas import AuditLogCreate
@@ -43,7 +48,16 @@ async def create_user(
     session: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    service = UserService(UserRepository(session))
+    user_repo = UserRepository(session)
+    tenant_repo = TenantRepository(session)
+    role_repo = RoleRepository(session)
+
+    service = UserService(
+        user_repo=user_repo,
+        tenant_repo=tenant_repo,
+        role_repo=role_repo,
+    )
+    
     user = await service.create_user(
         data=payload,
         actor=current_user,
@@ -70,4 +84,37 @@ async def create_user(
     return SuccessResponse(
         data=UserSchema.model_validate(user),
         message="User created successfully",
+    )
+
+@router.get(
+    "/",
+    response_model=SuccessResponse[PaginatedData[UserSchema]],
+    dependencies=[Depends(PermissionChecker("users:read"))],
+)
+async def list_users(
+    pagination: PaginationParams = Depends(),
+    session: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    service = UserService(
+        user_repo=UserRepository(session),
+        tenant_repo=None,  # not needed here
+        role_repo=None,    # not needed here
+    )
+
+    users, total = await service.list_users(
+        actor=current_user,
+        pagination=pagination,
+    )
+
+    return SuccessResponse(
+        data=PaginatedData(
+            items=[UserSchema.model_validate(u) for u in users],
+            pagination=PaginationMeta.create(
+                page=pagination.page,
+                page_size=pagination.page_size,
+                total_items=total,
+            ),
+        ),
+        message="Users retrieved successfully",
     )

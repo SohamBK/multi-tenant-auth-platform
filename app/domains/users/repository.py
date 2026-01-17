@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -79,3 +79,30 @@ class UserRepository(BaseRepository[User]):
         self.session.add(new_user)
         await self.session.flush()
         return new_user
+    
+    
+    async def list_paginated(
+        self,
+        *,
+        tenant_id,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[User], int]:
+        query = select(self.model)
+
+        # 🔒 Tenant isolation
+        if tenant_id is not None:
+            query = query.where(self.model.tenant_id == tenant_id)
+
+        query = query.offset(offset).limit(limit)
+
+        users = (await self.session.execute(query)).scalars().all()
+
+        # Count query
+        count_query = select(func.count()).select_from(self.model)
+        if tenant_id is not None:
+            count_query = count_query.where(self.model.tenant_id == tenant_id)
+
+        total = (await self.session.execute(count_query)).scalar_one()
+
+        return users, total
