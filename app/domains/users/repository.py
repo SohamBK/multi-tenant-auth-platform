@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.shared.repository import BaseRepository
 from app.infrastructure.db.models.user import User
+from app.infrastructure.db.enums import UserStatus
 from app.infrastructure.db.models.auth_rbac import Role
 from app.infrastructure.db.models.user_auth_method import UserAuthMethod
 
@@ -56,3 +57,25 @@ class UserRepository(BaseRepository[User]):
 
         result = await self.session.execute(query)
         return result.unique().scalar_one_or_none()
+    
+    async def create(
+        self,
+        *,
+        email: str,
+        first_name: str,
+        last_name: str,
+        role_id: UUID,
+        tenant_id: Optional[UUID] = None
+    ) -> User:
+        new_user = User(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            role_id=role_id,
+            tenant_id=tenant_id,
+            user_status=UserStatus.ACTIVE,
+        )        
+
+        self.session.add(new_user)
+        await self.session.flush()
+        return new_user

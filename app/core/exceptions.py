@@ -34,17 +34,14 @@ class AuthenticationError(AppException):
     error_code = "AUTHENTICATION_FAILED"
     message = "Authentication failed"
 
-
 class InvalidCredentials(AuthenticationError):
     error_code = "INVALID_CREDENTIALS"
     message = "Invalid email or password"
-
 
 class AuthorizationError(AppException):
     status_code = 403
     error_code = "FORBIDDEN"
     message = "You do not have permission to perform this action"
-
 
 # ---- Common ----
 
