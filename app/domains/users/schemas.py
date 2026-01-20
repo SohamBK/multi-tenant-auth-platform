@@ -1,6 +1,7 @@
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional
+from app.infrastructure.db.enums import UserStatus
 
 class UserSchema(BaseModel):
     """Standard public representation of a User."""
@@ -19,3 +20,9 @@ class UserCreateSchema(BaseModel):
     last_name: str
     role_id: UUID
     tenant_id: Optional[UUID] = None
+
+class UserUpdateSchema(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role_id: Optional[UUID] = None
+    user_status: Optional[UserStatus] = None

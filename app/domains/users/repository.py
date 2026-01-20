@@ -36,6 +36,19 @@ class UserRepository(BaseRepository[User]):
 
         result = await self.session.execute(query)
         return result.unique().scalar_one_or_none()
+    
+    async def get_by_id_scoped(
+        self,
+        *,
+        user_id,
+        tenant_id,
+    ) -> User | None:
+        query = select(self.model).where(self.model.id == user_id)
+
+        if tenant_id is not None:
+            query = query.where(self.model.tenant_id == tenant_id)
+
+        return (await self.session.execute(query)).scalar_one_or_none()
 
     async def get_by_email(
         self,

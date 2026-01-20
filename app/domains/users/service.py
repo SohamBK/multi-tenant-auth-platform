@@ -2,7 +2,7 @@ from uuid import UUID
 from app.domains.users.repository import UserRepository
 from app.domains.tenants.repository import TenantRepository
 from app.domains.roles.repository import RoleRepository
-from app.domains.users.schemas import UserCreateSchema
+from app.domains.users.schemas import UserCreateSchema, UserUpdateSchema
 from app.domains.shared.schemas.pagination import PaginationParams
 from app.core.exceptions import ResourceConflict, AuthorizationError, ResourceNotFound
 
@@ -83,3 +83,44 @@ class UserService:
         )
 
         return users, total
+    
+    async def update_user(
+        self,
+        *,
+        user_id,
+        data: UserUpdateSchema,
+        actor,
+    ):
+        # 1️⃣ Resolve scope
+        scope_tenant_id = None if actor.tenant_id is None else actor.tenant_id
+
+        user = await self.user_repo.get_by_id_scoped(
+            user_id=user_id,
+            tenant_id=scope_tenant_id,
+        )
+
+        if not user:
+            raise ResourceNotFound("User not found")
+
+        # 2️⃣ Role update validation
+        if data.role_id:
+            role = await self.role_repo.get_by_id(data.role_id)
+            if not role:
+                raise ResourceNotFound("Role not found")
+
+            if role.tenant_id is not None and role.tenant_id != user.tenant_id:
+                raise AuthorizationError("Role does not belong to user's tenant")
+
+            user.role_id = role.id
+
+        # 3️⃣ Apply updates
+        if data.first_name is not None:
+            user.first_name = data.first_name
+
+        if data.last_name is not None:
+            user.last_name = data.last_name
+
+        if data.user_status is not None:
+            user.user_status = data.user_status
+
+        return user
