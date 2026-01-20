@@ -26,3 +26,8 @@ class UserUpdateSchema(BaseModel):
     last_name: Optional[str] = None
     role_id: Optional[UUID] = None
     user_status: Optional[UserStatus] = None
+
+class UserFilterParams(BaseModel):
+    email: Optional[str] = None
+    user_status: Optional[UserStatus] = None
+    role_id: Optional[UUID] = None

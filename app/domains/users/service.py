@@ -2,7 +2,7 @@ from uuid import UUID
 from app.domains.users.repository import UserRepository
 from app.domains.tenants.repository import TenantRepository
 from app.domains.roles.repository import RoleRepository
-from app.domains.users.schemas import UserCreateSchema, UserUpdateSchema
+from app.domains.users.schemas import UserCreateSchema, UserUpdateSchema, UserFilterParams
 from app.domains.shared.schemas.pagination import PaginationParams
 from app.core.exceptions import ResourceConflict, AuthorizationError, ResourceNotFound
 
@@ -69,20 +69,19 @@ class UserService:
         *,
         actor,
         pagination: PaginationParams,
+        filters: UserFilterParams,
     ):
-        # 🔐 Scope resolution
-        if actor.tenant_id is None:
-            tenant_id = None  # system → all users
-        else:
-            tenant_id = actor.tenant_id  # tenant → own users only
+        # 🔐 Resolve scope
+        tenant_id = None if actor.tenant_id is None else actor.tenant_id
 
-        users, total = await self.user_repo.list_paginated(
+        return await self.user_repo.list_paginated(
             tenant_id=tenant_id,
             offset=pagination.offset,
             limit=pagination.limit,
+            email=filters.email,
+            user_status=filters.user_status,
+            role_id=filters.role_id,
         )
-
-        return users, total
     
     async def update_user(
         self,

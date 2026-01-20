@@ -100,21 +100,45 @@ class UserRepository(BaseRepository[User]):
         tenant_id,
         offset: int,
         limit: int,
-    ) -> tuple[list[User], int]:
+        email: str | None = None,
+        user_status: str | None = None,
+        role_id=None,
+    ):
         query = select(self.model)
 
         # 🔒 Tenant isolation
         if tenant_id is not None:
             query = query.where(self.model.tenant_id == tenant_id)
 
+        # 🔍 Filters
+        if email:
+            query = query.where(self.model.email.ilike(f"%{email}%"))
+
+        if user_status:
+            query = query.where(self.model.user_status == user_status)
+
+        if role_id:
+            query = query.where(self.model.role_id == role_id)
+
+        # Pagination
         query = query.offset(offset).limit(limit)
 
         users = (await self.session.execute(query)).scalars().all()
 
         # Count query
         count_query = select(func.count()).select_from(self.model)
+
         if tenant_id is not None:
             count_query = count_query.where(self.model.tenant_id == tenant_id)
+
+        if email:
+            count_query = count_query.where(self.model.email.ilike(f"%{email}%"))
+
+        if user_status:
+            count_query = count_query.where(self.model.user_status == user_status)
+
+        if role_id:
+            count_query = count_query.where(self.model.role_id == role_id)
 
         total = (await self.session.execute(count_query)).scalar_one()
 

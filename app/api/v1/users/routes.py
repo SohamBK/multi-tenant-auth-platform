@@ -7,13 +7,12 @@ from app.api.deps.auth import get_current_user
 from app.infrastructure.db.models.user import User
 from app.api.deps.permissions import PermissionChecker
 
-from app.domains.users.schemas import UserCreateSchema, UserSchema, UserUpdateSchema
+from app.domains.users.schemas import UserCreateSchema, UserSchema, UserUpdateSchema, UserFilterParams
 from app.domains.users.repository import UserRepository
 from app.domains.users.service import UserService
 
 from app.domains.tenants.repository import TenantRepository
 from app.domains.roles.repository import RoleRepository
-
 from app.domains.shared.schemas.pagination import PaginationParams, PaginatedData, PaginationMeta
 
 from app.domains.audit.repository import AuditLogRepository
@@ -94,18 +93,20 @@ async def create_user(
 )
 async def list_users(
     pagination: PaginationParams = Depends(),
+    filters: UserFilterParams = Depends(),
     session: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     service = UserService(
         user_repo=UserRepository(session),
-        tenant_repo=None,  # not needed here
-        role_repo=None,    # not needed here
+        tenant_repo=None,
+        role_repo=None,
     )
 
     users, total = await service.list_users(
         actor=current_user,
         pagination=pagination,
+        filters=filters,
     )
 
     return SuccessResponse(
