@@ -1,5 +1,5 @@
 from uuid import UUID
-from sqlalchemy import String, ForeignKey, Text, UniqueConstraint, Index
+from sqlalchemy import String, ForeignKey, Text, UniqueConstraint, Index, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.db.base import Base
 from app.infrastructure.db.mixins import IDMixin, TimestampMixin, TenantMixin
@@ -35,6 +35,7 @@ class Role(Base, IDMixin, TimestampMixin, TenantMixin):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     is_system_role: Mapped[bool] = mapped_column(default=False)
+    is_active = mapped_column(Boolean, default=True, nullable=True)
 
     # Relationships
     permissions: Mapped[list["Permission"]] = relationship(
