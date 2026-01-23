@@ -6,6 +6,14 @@ A production-grade authentication and authorization framework designed for scala
 
 ---
 
+## 🛠️ Tech Stack
+
+* **Framework:** [FastAPI](https://fastapi.tiangolo.com/) (Python 3.11+)
+* **Database:** [PostgreSQL 16](https://www.postgresql.org/) & [Async SQLAlchemy 2.0](https://www.sqlalchemy.org/)
+* **Caching:** [Redis 7](https://redis.io/) (OTP & Rate Limiting)
+* **Security:** [PyJWT](https://pyjwt.readthedocs.io/) (RS256)
+* **Ops:** Docker & Docker Compose
+
 ## ✨ Key Features
 
 ### 🔐 Authentication
