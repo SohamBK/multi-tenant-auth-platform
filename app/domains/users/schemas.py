@@ -31,3 +31,6 @@ class UserFilterParams(BaseModel):
     email: Optional[str] = None
     user_status: Optional[UserStatus] = None
     role_id: Optional[UUID] = None
+
+class UserRoleAssignSchema(BaseModel):
+    role_id: UUID

@@ -1,8 +1,8 @@
 from uuid import UUID
 from app.domains.users.repository import UserRepository
 from app.domains.tenants.repository import TenantRepository
-from app.domains.roles.repository import RoleRepository
-from app.domains.users.schemas import UserCreateSchema, UserUpdateSchema, UserFilterParams
+from app.domains.rbac.roles.repository import RoleRepository
+from app.domains.users.schemas import UserCreateSchema, UserUpdateSchema, UserFilterParams, UserRoleAssignSchema
 from app.domains.shared.schemas.pagination import PaginationParams
 from app.core.exceptions import ResourceConflict, AuthorizationError, ResourceNotFound
 
@@ -123,3 +123,51 @@ class UserService:
             user.user_status = data.user_status
 
         return user
+
+    async def assign_role(
+        self,
+        *,
+        user_id,
+        data: UserRoleAssignSchema,
+        actor,
+    ):
+        # 1️⃣ Load user with tenant scoping
+        user = await self.user_repo.get_by_id_scoped(
+            user_id=user_id,
+            tenant_id=None if actor.tenant_id is None else actor.tenant_id,
+        )
+
+        if not user:
+            raise ResourceNotFound("User not found")
+
+        if user.user_status != "active":
+            raise AuthorizationError("Cannot assign role to inactive user")
+
+        # 2️⃣ Load role (visibility enforced)
+        role = await self.role_repo.get_visible_role_by_id(
+            role_id=data.role_id,
+            tenant_id=actor.tenant_id,
+        )
+
+        if not role:
+            raise ResourceNotFound("Role not found")
+
+        if not role.is_active:
+            raise AuthorizationError("Cannot assign inactive role")
+
+        # 3️⃣ System role protection
+        if role.is_system_role and actor.tenant_id is not None:
+            raise AuthorizationError("Cannot assign system role")
+
+        # 4️⃣ Tenant consistency
+        if role.tenant_id != user.tenant_id:
+            raise AuthorizationError("Role and user tenant mismatch")
+
+        # 5️⃣ No-op protection
+        if user.role_id == role.id:
+            raise ResourceConflict("User already has this role")
+
+        user.role_id = role.id
+        await self.user_repo.session.flush()
+
+        return user, role

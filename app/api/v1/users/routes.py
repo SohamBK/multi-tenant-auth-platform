@@ -7,12 +7,12 @@ from app.api.deps.auth import get_current_user
 from app.infrastructure.db.models.user import User
 from app.api.deps.permissions import PermissionChecker
 
-from app.domains.users.schemas import UserCreateSchema, UserSchema, UserUpdateSchema, UserFilterParams
+from app.domains.users.schemas import UserCreateSchema, UserSchema, UserUpdateSchema, UserFilterParams, UserRoleAssignSchema
 from app.domains.users.repository import UserRepository
 from app.domains.users.service import UserService
 
 from app.domains.tenants.repository import TenantRepository
-from app.domains.roles.repository import RoleRepository
+from app.domains.rbac.roles.repository import RoleRepository
 from app.domains.shared.schemas.pagination import PaginationParams, PaginatedData, PaginationMeta
 
 from app.domains.audit.repository import AuditLogRepository
@@ -240,4 +240,51 @@ async def reactivate_user(
     return SuccessResponse(
         data=UserSchema.model_validate(user),
         message="User reactivated successfully",
+    )
+
+@router.patch(
+    "/{user_id}/role",
+    response_model=SuccessResponse[UserSchema],
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(PermissionChecker("users:update"))],
+)
+async def assign_role_to_user(
+    user_id: UUID,
+    payload: UserRoleAssignSchema,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    service = UserService(
+        user_repo=UserRepository(session),
+        role_repo=RoleRepository(session),
+        tenant_repo=TenantRepository(session),
+    )
+
+    user, role = await service.assign_role(
+        user_id=user_id,
+        data=payload,
+        actor=current_user,
+    )
+
+    # 🧾 Audit
+    await AuditService(AuditLogRepository(session)).log_action(
+        tenant_id=user.tenant_id,
+        actor_id=current_user.id,
+        data=AuditLogCreate(
+            action="users.role.assign",
+            resource_type="user",
+            resource_id=str(user.id),
+            payload={
+                "assigned_role_id": str(role.id),
+                "assigned_role_name": role.name,
+            },
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+        ),
+    )
+
+    return SuccessResponse(
+        data=UserSchema.model_validate(user),
+        message="Role assigned to user successfully",
     )
