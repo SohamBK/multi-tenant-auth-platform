@@ -7,7 +7,7 @@ from app.api.deps.auth import get_current_user
 from app.infrastructure.db.models.user import User
 from app.api.deps.permissions import PermissionChecker
 
-from app.domains.users.schemas import UserCreateSchema, UserSchema, UserUpdateSchema, UserFilterParams, UserRoleAssignSchema
+from app.domains.users.schemas import UserCreateSchema, UserSchema, UserUpdateSchema, UserFilterParams, UserRoleAssignSchema, UserMeSchema
 from app.domains.users.repository import UserRepository
 from app.domains.users.service import UserService
 
@@ -23,17 +23,35 @@ from app.core.responses import SuccessResponse
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-@router.get("/me", response_model=SuccessResponse[UserSchema])
+@router.get("/me", response_model=SuccessResponse[UserMeSchema])
 async def read_user_me(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Returns the profile of the currently authenticated user.
-    Uses UserSchema for secure, automated serialization.
+    Returns the profile + RBAC context of the currently authenticated user.
     """
+
+    role = current_user.role
+    permissions = [p.slug for p in role.permissions]
+
+    data = UserMeSchema(
+        id=current_user.id,
+        email=current_user.email,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+
+        tenant_id=current_user.tenant_id,
+        tenant_name=current_user.tenant.name if current_user.tenant else None,
+
+        role_id=role.id,
+        role_name=role.name,
+
+        permissions=permissions,
+    )
+
     return SuccessResponse(
-        data=UserSchema.model_validate(current_user),
-        message="User profile retrieved"
+        data=data,
+        message="User context retrieved",
     )
 
 @router.post(

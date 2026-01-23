@@ -1,6 +1,6 @@
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from app.infrastructure.db.enums import UserStatus
 
 class UserSchema(BaseModel):
@@ -34,3 +34,21 @@ class UserFilterParams(BaseModel):
 
 class UserRoleAssignSchema(BaseModel):
     role_id: UUID
+
+
+class UserMeSchema(BaseModel):
+    id: UUID
+    email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+
+    tenant_id: Optional[UUID]
+    tenant_name: Optional[str]
+
+    role_id: UUID
+    role_name: str
+
+    permissions: List[str]
+
+    class Config:
+        from_attributes = True
