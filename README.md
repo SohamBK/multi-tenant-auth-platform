@@ -63,3 +63,9 @@ app/
 ├── security/           # JWT, Hashing, & Encryption Logic
 ├── core/               # Config, Constants, & Logging
 └── main.py             # Application Entry Point
+```
+
+## ▶️ Running Locally
+
+```bash
+docker compose up --build
